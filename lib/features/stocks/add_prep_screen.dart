@@ -3,14 +3,14 @@ import 'package:freezzy/core/theme/app_colors.dart';
 import 'package:freezzy/core/theme/app_typography.dart';
 import 'package:freezzy/core/theme/main_filled_button.dart';
 
-class AddProductScreen extends StatefulWidget {
-  const AddProductScreen({super.key});
+class AddPrepScreen extends StatefulWidget {
+  const AddPrepScreen({super.key});
 
   @override
-  State<AddProductScreen> createState() => _AddProductScreenState();
+  State<AddPrepScreen> createState() => _AddPrepScreenState();
 }
 
-class _AddProductScreenState extends State<AddProductScreen> {
+class _AddPrepScreenState extends State<AddPrepScreen> {
   final _formKey = GlobalKey<FormState>();
 
   // Контроллеры для полей ввода
@@ -21,22 +21,22 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   // Списки для выпадающих меню (в будущем пойдут из БД)
   final List<String> _categories = [
-    'Молочные продукты',
-    'Мясо',
-    'Рыба и морепродукты',
-    'Овощи',
-    'Фрукты',
-    'Крупы',
+    'Мясные полуфабрикаты',
+    'Готовые мясные блюда',
+    'Бульоны, супы, соусы',
+    'Овощи, заправки',
+    'Рыбные полуфабрикаты',
+    'Тесто, натертый сыр',
   ];
   final Map<String, List<String>> _baseItems = {
-    'Молочные продукты': ['Молоко', 'Кефир', 'Творог', 'Сыр'],
-    'Крупы': ['Мука', 'Рис', 'Гречка', 'Овсянка'],
-    'Овощи': ['Томаты', 'Огурцы', 'Брокколи', 'Шпинат'],
+    'Мясные полуфабрикаты': ['Котлеты необжаренные', 'Фрикадельки', 'Пельмени', 'Фарш'],
+    'Бульоны, супы, соусы': ['Бульон куриный', 'Борщ', 'Бульон рыбный', 'Песто соус'],
+    'Овощи, заправки': ['Зажарка лук и морковь', 'Морковь натертая', 'Овощной микс', 'Шампиньоны с луком обжаренные'],
   };
   final Map<String, List<String>> _itemVariants = {
-    'Молоко': ['Обычное 3.2%', 'Безлактозное 1.5%', 'Ультрапастеризованное'],
-    'Творог': ['9% в пачке', '5% рассыпчатый', 'Обезжиренный 0%'],
-    'Мука': ['Пшеничная высший сорт', 'Рисовая', 'Цельнозерновая'],
+    'Фарш': ['Свинина и говядина', 'Куриное филе', 'Курица и индейка'],
+    'Бульон куриный': ['Бульон куриный светлый', 'Бульон куриный темный (консоме)', 'Бульон куриный концентрат 1:2'],
+    'Пельмени': ['Свинина и говядина', 'Курица', 'Индейка'],
   };
   final List<String> _units = ['шт', 'гр', 'кг', 'мл', 'л', 'упак'];
 
@@ -78,7 +78,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     final double dropdownWidth = MediaQuery.of(context).size.width - 40;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Добавить продукт'), centerTitle: true),
+      appBar: AppBar(title: const Text('Добавить заготовку'), centerTitle: true),
       body: SafeArea(
         child: Form(
           key: _formKey,
@@ -123,7 +123,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       const SizedBox(height: 24),
 
                       // --- УРОВЕНЬ 2: БАЗОВЫЙ ПРОДУКТ (С умным поиском по буквам) ---
-                      const Text('Продукт', style: AppTypography.body),
+                      const Text('Заготовка', style: AppTypography.body),
                       const SizedBox(height: 8),
                       DropdownMenu<String>(
                         key: ValueKey(
@@ -137,7 +137,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                             true, // Открывает клавиатуру при фокусе
                         hintText: _selectedCategory == null
                             ? 'Сначала выберите категорию'
-                            : 'Что именно добавляем? (напр., Творог)',
+                            : 'Что именно добавляем? (напр., Пельмени)',
                         inputDecorationTheme: Theme.of(
                           context,
                         ).inputDecorationTheme,
@@ -163,7 +163,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         const Padding(
                           padding: EdgeInsets.only(top: 8.0, left: 16.0),
                           child: Text(
-                            'Выберите продукт из списка или поиска',
+                            'Выберите заготовку из списка или поиска',
                             style: TextStyle(
                               color: AppColors.error,
                               fontSize: 12,
@@ -174,13 +174,13 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       const SizedBox(height: 24.0),
 
                       // --- УРОВЕНЬ 3: КОНКРЕТНЫЙ ВИД / МАРКА (Дропдаун + Свой вариант) ---
-                      const Text('Вид или марка', style: AppTypography.body),
+                      const Text('Вид или состав', style: AppTypography.body),
                       const SizedBox(height: 8.0),
                       DropdownButtonFormField<String>(
                         initialValue: _selectedItemVariant,
                         hint: Text(
                           _selectedBaseItem == null
-                              ? 'Сначала выберите продукт'
+                              ? 'Сначала выберите заготовку'
                               : 'Выберите конкретный вид',
                         ),
                         items: _selectedBaseItem == null
@@ -218,7 +218,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                                 });
                               },
                         validator: (value) =>
-                            value == null ? 'Выберите вид продукта' : null,
+                            value == null ? 'Выберите вид заготовки' : null,
                       ),
 
                       // --- ДИНАМИЧЕСКОЕ ПОЛЕ РУЧНОГО ВВОДА ---
@@ -228,7 +228,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           controller: _customItemVariantController,
                           decoration: const InputDecoration(
                             labelText: 'Название вашего варианта',
-                            hintText: 'Например: Безлактозное Parmalat 3.2%',
+                            hintText: 'Например: Вареники бабушкины с ежевикой',
                           ),
                           validator: (value) => value == null || value.isEmpty
                               ? 'Введите название нового вида'

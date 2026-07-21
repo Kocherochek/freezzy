@@ -6,6 +6,7 @@ import 'package:freezzy/features/stocks/add_product_screen.dart';
 import 'package:freezzy/features/stocks/products_screen.dart';
 import 'package:freezzy/features/stocks/preps_screen.dart';
 import 'package:freezzy/features/stocks/widgets/stock_card.dart';
+import 'package:freezzy/features/stocks/add_prep_screen.dart';
 
 class StocksTab extends StatelessWidget {
   const StocksTab({super.key});
@@ -78,7 +79,14 @@ class StocksTab extends StatelessWidget {
                         builder: (context) => const PrepsScreen(),
                         ),
                     );},
-                      onPlusTap: () {},
+                      onPlusTap: () {
+                        Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const AddPrepScreen(),
+                      fullscreenDialog: true,
+                    ),
+                  );
+                      },
                       ),
                       ),
             ],

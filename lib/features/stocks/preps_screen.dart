@@ -3,6 +3,7 @@ import 'package:freezzy/core/theme/app_colors.dart';
 import 'package:freezzy/core/theme/app_typography.dart';
 //import 'package:freezzy/core/theme/app_theme.dart';
 import 'package:freezzy/core/theme/main_filled_button.dart';
+import 'package:freezzy/features/stocks/add_prep_screen.dart';
 
 class PrepsScreen extends StatelessWidget {
   const PrepsScreen({super.key});
@@ -70,6 +71,12 @@ class PrepsScreen extends StatelessWidget {
               child: MainFilledButton(
                 onPressed: () {
                   // Логика открытия формы добавления продукта
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const AddPrepScreen(),
+                      fullscreenDialog: true,
+                    ),
+                  );
                 },
                 child: const Text(
                   'Добавить заготовку',
@@ -86,6 +93,12 @@ class PrepsScreen extends StatelessWidget {
         floatingActionButton: FloatingActionButton(
           onPressed: () {
             // Логика открытия формы добавления продукта
+            Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const AddPrepScreen(),
+                      fullscreenDialog: true,
+                    ),
+                  );
           },
           child: const Icon(Icons.add, size: 28,),),
     );

@@ -92,7 +92,12 @@ class ProductsScreen extends StatelessWidget {
 
         floatingActionButton: FloatingActionButton(
           onPressed: () {
-            // Логика открытия формы добавления продукта
+            Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const AddProductScreen(),
+                        fullscreenDialog: true,
+                        )
+                    );
           },
           child: const Icon(Icons.add, size: 28,),),
     );
