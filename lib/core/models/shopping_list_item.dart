@@ -1,10 +1,10 @@
 // lib/core/models/shopping_list_item.dart
 //
-// ShoppingListItem — отдельный пункт в списке покупок.
-// Ссылается на BaseProduct (уровень "Молоко"), а не на конкретный вид —
-// в магазине неважно, брать безлактозное или обычное, если явно
-// не указано (это можно уточнить как отдельную будущую доработку).
-// Заготовки в список покупок не попадают — их не покупают, а готовят.
+// Отдельный пункт списка покупок. Теперь принадлежит конкретному
+// ShoppingList через shoppingListId — без этого архивация списков
+// была бы невозможна (нечего было бы группировать).
+// Ссылается на BaseProduct, а не на конкретный вид — заготовки
+// в список покупок не попадают, их не покупают, а готовят.
 
 import 'enums.dart';
 
@@ -16,6 +16,7 @@ enum ShoppingReason {
 
 class ShoppingListItem {
   final String id;
+  final String shoppingListId; // ссылка на ShoppingList.id
   final String baseProductId; // ссылка на BaseProduct.id
   final String baseProductName; // "Молоко" — для отображения
   final double quantity;
@@ -26,6 +27,7 @@ class ShoppingListItem {
 
   ShoppingListItem({
     required this.id,
+    required this.shoppingListId,
     required this.baseProductId,
     required this.baseProductName,
     required this.quantity,
