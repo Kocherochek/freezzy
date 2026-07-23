@@ -6,11 +6,13 @@
 // и что нужно разморозить (тут просто "какие продукты и для каких
 // рецептов", количество не так важно, как факт "не забудь достать").
 
+import '../models/enums.dart';
 import '../models/generated_menu.dart';
 import '../models/item_variant.dart';
 import '../models/recipe.dart';
-import 'recipe_matching.dart';
+import 'recipe_matching.dart' hide groupVariantsByBaseItem;
 import 'stock_consumption.dart';
+import 'stock_matching.dart';
 
 /// Одна строка агрегированной потребности — либо "не хватает X",
 /// либо "нужно разморозить Y". Для разморозки quantityInBaseUnit
@@ -130,4 +132,96 @@ DayMenuAlerts computeDayAlerts({
     missingIngredients: missing.values.toList(),
     needsDefrostIngredients: needsDefrost.values.toList(),
   );
+}
+
+/// Пересчитывает алерты для дня с учётом вручную добавленных продуктов.
+/// Используется, когда пользователь нажал "в наличии" на забытом ингредиенте
+/// в модалке рецепта — мы обновляем виртуальный склад и пересчитываем,
+/// что теперь не хватает для всего дня.
+DayMenuAlerts recomputeDayAlertsWithManualAdditions({
+  required GeneratedMenu menu,
+  required Map<String, Recipe> recipesById,
+  required List<ItemVariant> productStock,
+  required List<ItemVariant> prepStock,
+  required Map<String, double> manualAdditions, // baseItemId -> количество в базовой единице
+}) {
+  // Создаём копии стоков с учётом ручных добавлений
+  final manualStock = _applyManualAdditions(
+    productStock: productStock,
+    prepStock: prepStock,
+    manualAdditions: manualAdditions,
+  );
+  
+  // Используем обычную функцию computeDayAlerts с обновлёнными стоками
+  return computeDayAlerts(
+    menu: menu,
+    recipesById: recipesById,
+    productStock: manualStock.productStock,
+    prepStock: manualStock.prepStock,
+  );
+}
+
+/// Внутренняя функция: применяет ручные добавления к стокам
+_ManualStock _applyManualAdditions({
+  required List<ItemVariant> productStock,
+  required List<ItemVariant> prepStock,
+  required Map<String, double> manualAdditions,
+}) {
+  // Группируем существующие партии по baseItemId
+  final productGroups = groupVariantsByBaseItem(productStock);
+  final prepGroups = groupVariantsByBaseItem(prepStock);
+  
+  final newProductStock = <ItemVariant>[];
+  final newPrepStock = <ItemVariant>[];
+  
+  // Копируем существующие
+  newProductStock.addAll(productStock);
+  newPrepStock.addAll(prepStock);
+  
+  // Добавляем ручные добавления как "виртуальные" партии
+  // (с ID = "manual_<baseItemId>" чтобы их можно было отличить)
+  for (final entry in manualAdditions.entries) {
+    final baseItemId = entry.key;
+    final quantity = entry.value;
+    if (quantity <= 0) continue;
+    
+    // Ищем, к какому типу относится (продукт или заготовка)
+    final isProduct = productGroups.containsKey(baseItemId);
+    final isPrep = prepGroups.containsKey(baseItemId);
+    
+    if (isProduct) {
+      // Создаём "виртуальную" партию продукта
+      newProductStock.add(ProductVariant(
+        id: 'manual_$baseItemId',
+        baseItemId: baseItemId,
+        name: 'Вручную добавлено',
+        zone: StockingZone.pantry, // зона не важна для ручных добавлений
+        quantity: quantity,
+        unit: Unit.grams, // будет конвертироваться при необходимости
+        addedDate: DateTime.now(),
+      ));
+    } else if (isPrep) {
+      newPrepStock.add(PrepVariant(
+        id: 'manual_$baseItemId',
+        baseItemId: baseItemId,
+        name: 'Вручную добавлено',
+        zone: StockingZone.pantry,
+        quantity: quantity,
+        unit: Unit.grams,
+        addedDate: DateTime.now(),
+      ));
+    }
+  }
+  
+  return _ManualStock(
+    productStock: newProductStock,
+    prepStock: newPrepStock,
+  );
+}
+
+class _ManualStock {
+  final List<ItemVariant> productStock;
+  final List<ItemVariant> prepStock;
+  
+  _ManualStock({required this.productStock, required this.prepStock});
 }

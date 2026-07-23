@@ -13,13 +13,16 @@ import 'core/models/item_variant.dart';
 import 'core/models/recipe.dart';
 import 'core/models/meal_plan.dart';
 import 'core/models/shopping_list.dart';
-import 'core/models/shopping_list_item.dart';
+import 'core/models/category.dart';
+import 'core/models/cooking_session.dart';
 import 'core/logic/recipe_matching.dart';
-import 'core/logic/recipe_selection.dart';
+import 'core/logic/recipe_filtering.dart';
 import 'core/logic/day_menu_generation.dart';
 import 'core/logic/day_menu_alerts.dart';
 import 'core/logic/stock_consumption.dart';
 import 'core/logic/prep_yield_stocking.dart';
+import 'core/logic/cooking_session.dart';
+import 'core/logic/shopping_list_logic.dart';
 
 int _idCounter = 0;
 String generateId() => 'id_${_idCounter++}';
@@ -146,6 +149,31 @@ void main() {
     defaultUnit: Unit.grams,
     defaultShelfLifeDays: 2,
   );
+
+  final productsById = <String, BaseProduct>{
+    milk.id: milk,
+    eggs.id: eggs,
+    chicken.id: chicken,
+    carrot.id: carrot,
+    onion.id: onion,
+    rice.id: rice,
+    buckwheat.id: buckwheat,
+    cucumber.id: cucumber,
+    tomato.id: tomato,
+    feta.id: feta,
+    oliveOil.id: oliveOil,
+    flour.id: flour,
+    mince.id: mince,
+  };
+
+  final categories = [
+    Category(id: 'cat_dairy', name: 'Молочные продукты'),
+    Category(id: 'cat_meat', name: 'Мясо и птица'),
+    Category(id: 'cat_veg', name: 'Овощи'),
+    Category(id: 'cat_grain', name: 'Крупы'),
+    Category(id: 'cat_condiment', name: 'Соусы и приправы'),
+    Category(id: 'cat_prep', name: 'Заготовки'),
+  ];
 
   // ===================== СПРАВОЧНИК: БАЗОВЫЕ ЗАГОТОВКИ =====================
 
@@ -552,19 +580,99 @@ void main() {
 
   print('\n=== Формируем список покупок из недостающего за день ===');
   final shoppingList = ShoppingList(id: generateId(), createdAt: now);
-  final shoppingItems = dayAlerts.missingIngredients.map((need) {
-    return ShoppingListItem(
-      id: generateId(),
-      shoppingListId: shoppingList.id,
-      baseProductId: need.baseItemId,
-      baseProductName: need.displayName,
-      quantity: need.quantityInBaseUnit,
-      unit: Unit.grams, // все недостающие в этом наборе данных — по массе
-      reason: ShoppingReason.forRecipe,
-    );
-  }).toList();
+  var shoppingItems = addMissingFromDayAlerts(
+    missingIngredients: dayAlerts.missingIngredients,
+    existingItems: [],
+    shoppingListId: shoppingList.id,
+    productsById: productsById,
+    generateId: generateId,
+  );
 
   for (final item in shoppingItems) {
     print('  - ${item.baseProductName}: ${item.quantity} ${item.unit}');
   }
+
+  // ===================== ШАГ 8: ГОТОВИМ РЕЦЕПТ ЧЕРЕЗ СЕССИЮ — ПРОВЕРКА ЗАКОНЧИВШИХСЯ ПРОДУКТОВ =====================
+
+  final prepsById = <String, BasePrep>{dumplings.id: dumplings};
+
+  print('\n=== Сессия готовки: готовим "Греческий салат" — проверка закончившихся продуктов ===');
+  // Восстанавливаем сток до состояния ДО готовки плова (для чистоты демо)
+  // Создадим свежий сток с помидором, который ДО готовки салата ещё есть
+  final saladPrepStock = <ItemVariant>[]; // заготовок нет
+  final saladProductStock = <ItemVariant>[
+    ProductVariant(id: 'pv_cuc_1', baseItemId: cucumber.id, name: 'Огурец',
+        zone: StockingZone.fridge, quantity: 100, unit: Unit.grams,
+        addedDate: now),
+    ProductVariant(id: 'pv_tom_1', baseItemId: tomato.id, name: 'Помидор',
+        zone: StockingZone.fridge, quantity: 150, unit: Unit.grams,
+        addedDate: now),
+    ProductVariant(id: 'pv_feta_1', baseItemId: feta.id, name: 'Сыр фета',
+        zone: StockingZone.fridge, quantity: 150, unit: Unit.grams,
+        addedDate: now),
+    ProductVariant(id: 'pv_oil_1', baseItemId: oliveOil.id, name: 'Оливковое масло',
+        zone: StockingZone.pantry, quantity: 200, unit: Unit.milliliters,
+        addedDate: now),
+  ];
+
+  final saladCookingRecipe = CookingRecipe(
+    originalRecipe: rSalad,
+    targetServings: 2,
+    scaledIngredients: [
+      ScaledIngredient(ingredientId: 'ri_10', baseProductId: cucumber.id,
+          baseProductName: cucumber.name, scaledQuantity: 100, unit: Unit.grams),
+    ],
+    scaledPreps: [],
+    steps: [
+      CookingStep(originalStep: rSalad.steps[0], stepIndex: 0),
+    ],
+    totalCookingTimeMinutes: 10,
+    effectiveCookingTimeMinutes: 10,
+    hasAvailablePreps: false,
+  );
+
+  final saladResult = completeRecipe(
+    cookingRecipe: saladCookingRecipe,
+    productStock: saladProductStock,
+    prepStock: saladPrepStock,
+    prepsById: prepsById,
+    productsById: productsById,
+    generateId: generateId,
+  );
+
+  print('Закончились продукты:');
+  if (saladResult.depletedProducts.isEmpty) {
+    print('  (нет — все продукты остались на складе)');
+  } else {
+    for (final dp in saladResult.depletedProducts) {
+      print('  - ${dp.baseProductName}: было израсходовано ${dp.consumedQuantity} ${dp.unit}');
+    }
+  }
+
+  // Добавим их в список покупок
+  shoppingItems = addDepletedFromCooking(
+    depletedProducts: saladResult.depletedProducts,
+    existingItems: shoppingItems,
+    shoppingListId: shoppingList.id,
+    productsById: productsById,
+    generateId: generateId,
+  );
+
+  print('\n=== Итоговый список покупок (после добавления закончившихся) ===');
+  final grouped = categorizeItems(items: shoppingItems, categories: categories);
+  for (final entry in grouped.entries) {
+    print('  ${entry.key.name}:');
+    for (final item in entry.value) {
+      print('    - ${item.baseProductName}: ${item.quantity} ${item.unit}'
+          '${item.isChecked ? " [куплено]" : ""}');
+    }
+  }
+
+  print('\n=== Отмечаем всё купленным, потом очищаем купленное ===');
+  markAllAsChecked(shoppingItems);
+  print('  После отметить всё: ${shoppingItems.where((i) => i.isChecked).length} куплено');
+  shoppingItems = removeChecked(shoppingItems);
+  print('  После очистки купленного: ${shoppingItems.length} осталось');
+  shoppingItems = clearAll(shoppingItems);
+  print('  После очистки всего списка: ${shoppingItems.length} элементов');
 }

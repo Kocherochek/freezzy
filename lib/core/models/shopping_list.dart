@@ -17,4 +17,12 @@ class ShoppingList {
     required this.createdAt,
     this.status = ShoppingListStatus.active,
   });
+
+  ShoppingList copyWith({ShoppingListStatus? status}) {
+    return ShoppingList(
+      id: id,
+      createdAt: createdAt,
+      status: status ?? this.status,
+    );
+  }
 }

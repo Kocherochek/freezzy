@@ -13,6 +13,8 @@
 
 import '../models/enums.dart';
 import '../models/item_variant.dart';
+import '../models/recipe.dart';
+import 'recipe_matching.dart';
 import 'units.dart';
 
 /// Одна партия, которая будет израсходована для покрытия требования.
@@ -60,12 +62,17 @@ class IngredientMatchResult {
 /// список партий конкретно этого baseItemId (см. группировку склада
 /// в следующем комментарии), но функция сама подстрахуется и отфильтрует,
 /// если передать более широкий список.
+///
+/// [manualAdditions] — вручную добавленные пользователем количества
+/// (например, нажал чекбокс "в наличии" в модалке рецепта).
+/// Ключ = baseItemId, значение = количество в базовой единице.
 IngredientMatchResult matchIngredient({
   required String baseItemId,
   required String displayName,
   required double requiredQuantity,
   required Unit requiredUnit,
   required List<ItemVariant> availableVariants,
+  Map<String, double> manualAdditions = const {},
 }) {
   final relevant = availableVariants
       .where((v) => v.baseItemId == baseItemId)
@@ -83,6 +90,12 @@ IngredientMatchResult matchIngredient({
 
   double remaining = requiredBase;
   double availableTotal = 0;
+  
+  // Учитываем вручную добавленные количества
+  final manualAdded = manualAdditions[baseItemId] ?? 0.0;
+  availableTotal += manualAdded;
+  remaining -= manualAdded;
+  
   final allocations = <StockAllocation>[];
   bool needsDefrost = false;
   bool usesExpiringStock = false;
@@ -121,6 +134,66 @@ IngredientMatchResult matchIngredient({
     needsDefrost: needsDefrost,
     usesExpiringStock: usesExpiringStock,
     allocations: allocations,
-    unitType: requiredUnit,
+unitType: requiredUnit,
+  );
+}
+
+/// Группирует партии склада по baseItemId — считаем один раз перед
+/// серией проверок, а не фильтруем весь склад на каждый ингредиент.
+Map<String, List<ItemVariant>> groupVariantsByBaseItem(
+  List<ItemVariant> variants,
+) {
+  final map = <String, List<ItemVariant>>{};
+  for (final v in variants) {
+    if (!map.containsKey(v.baseItemId)) {
+      map[v.baseItemId] = [];
+    }
+    map[v.baseItemId]!.add(v);
+  }
+  return map;
+}
+
+/// Пересчитывает совпадение рецепта со складом с учётом вручную
+/// добавленных пользователем продуктов.
+///
+/// [manualAdditions] — `Map<String, double>` (baseItemId -> quantityInBaseUnit)
+/// для продуктов, которые пользователь отметил как "в наличии" в модалке рецепта.
+/// Это позволяет мгновенно пересчитать статус рецепта без изменения
+/// реального склада.
+RecipeMatchResult revalidateRecipeWithManualAdditions({
+  required Recipe recipe,
+  required List<ItemVariant> productStock,
+  required List<ItemVariant> prepStock,
+  required Map<String, double> manualAdditions,
+}) {
+  final productsByBaseId = groupVariantsByBaseItem(productStock);
+  final prepsByBaseId = groupVariantsByBaseItem(prepStock);
+
+  final productResults = recipe.ingredients.map((ing) {
+    return matchIngredient(
+      baseItemId: ing.baseProductId,
+      displayName: ing.baseProductName,
+      requiredQuantity: ing.quantity,
+      requiredUnit: ing.unit,
+      availableVariants: productsByBaseId[ing.baseProductId] ?? const [],
+      manualAdditions: manualAdditions,
+    );
+  }).toList();
+
+  final prepResults = recipe.requiredPreps.map((req) {
+    return matchIngredient(
+      baseItemId: req.basePrepId,
+      displayName: req.basePrepName,
+      requiredQuantity: req.quantity,
+      requiredUnit: req.unit,
+      availableVariants: prepsByBaseId[req.basePrepId] ?? const [],
+      manualAdditions: manualAdditions,
+    );
+  }).toList();
+
+  return RecipeMatchResult(
+    recipeId: recipe.id,
+    productResults: productResults,
+    prepResults: prepResults,
   );
 }

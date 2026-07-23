@@ -19,7 +19,8 @@ class ShoppingListItem {
   final String shoppingListId; // ссылка на ShoppingList.id
   final String baseProductId; // ссылка на BaseProduct.id
   final String baseProductName; // "Молоко" — для отображения
-  final double quantity;
+  final String categoryId; // из BaseProduct.categoryId — для группировки
+  double quantity; // можно редактировать в магазине
   final Unit unit;
   final ShoppingReason reason;
   final String? relatedRecipeId; // заполнено, если reason == forRecipe
@@ -30,6 +31,7 @@ class ShoppingListItem {
     required this.shoppingListId,
     required this.baseProductId,
     required this.baseProductName,
+    required this.categoryId,
     required this.quantity,
     required this.unit,
     required this.reason,

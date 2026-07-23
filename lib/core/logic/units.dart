@@ -40,6 +40,7 @@ double toBaseUnit(double quantity, Unit unit) {
       return quantity * 1000;
     case Unit.pieces:
       return quantity;
+    // ignore: unreachable_switch_case
     case _:
       throw ArgumentError('Неизвестная единица измерения: $unit');
   }
@@ -62,6 +63,7 @@ double fromBaseUnit(double baseQuantity, Unit unit) {
       return baseQuantity / 1000;
     case Unit.pieces:
       return baseQuantity;
+    // ignore: unreachable_switch_case
     case _:
       throw ArgumentError('Неизвестная единица измерения: $unit');
   }
